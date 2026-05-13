@@ -1,13 +1,22 @@
+# Core
 Django==4.2.13
 djangorestframework==3.15.1
 djangorestframework-simplejwt==5.3.1
+
+# Database
 psycopg2-binary==2.9.9
+
+# Environment
 python-decouple==3.8
+
+# Async / Queue
+celery==5.4.0
+redis==5.0.6
+django-celery-results==2.5.1
+
+# Testing
 pytest==8.2.2
 pytest-django==4.8.0
 pytest-cov==5.0.0
 factory-boy==3.3.0
 Faker==25.8.0
-celery==5.4.0
-redis==5.0.6
-django-celery-results==2.5.1

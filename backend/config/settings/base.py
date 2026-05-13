@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'apps.ranking',
     'apps.moderation',
     'apps.common',
+    
 ]
 
 MIDDLEWARE = [
