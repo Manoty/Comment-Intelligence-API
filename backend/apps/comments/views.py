@@ -5,6 +5,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
 from django.core.exceptions import PermissionDenied, ValidationError
 
+from apps.ranking.selectors import RankingSelector
+
 from .services import CommentService
 from .selectors import CommentSelector
 from .serializers import (
@@ -27,9 +29,8 @@ class CommentListCreateView(APIView):
 
     def get(self, request):
         sort = request.query_params.get('sort', 'latest')
-        comments = CommentSelector.get_root_comments(sort=sort)
+        comments = RankingSelector.get_comments_by_sort(sort=sort)
 
-        # Manual pagination
         page_size = int(request.query_params.get('page_size', 20))
         page = int(request.query_params.get('page', 1))
         start = (page - 1) * page_size
@@ -41,6 +42,7 @@ class CommentListCreateView(APIView):
         return Response({
             'page': page,
             'page_size': page_size,
+            'sort': sort,
             'results': serializer.data,
         })
 
