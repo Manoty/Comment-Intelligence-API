@@ -5,6 +5,8 @@ from django.core.exceptions import PermissionDenied, ValidationError
 
 from .models import Comment
 
+from apps.ranking.tasks import recalculate_score_for_comment
+
 logger = logging.getLogger(__name__)
 
 
@@ -13,9 +15,6 @@ class CommentService:
     @staticmethod
     @transaction.atomic
     def create_comment(*, author, content: str) -> Comment:
-        """
-        [COMMENT-02a] Create root-level comment.
-        """
         if not content or not content.strip():
             raise ValidationError('Comment content cannot be empty.')
 
@@ -24,15 +23,16 @@ class CommentService:
             content=content.strip(),
         )
         logger.info(f'Comment created: {comment.id} by user {author.id}')
+
+        # Fire score calculation only after DB commit
+        transaction.on_commit(
+            lambda: recalculate_score_for_comment.delay(str(comment.id))
+        )
         return comment
 
     @staticmethod
     @transaction.atomic
     def create_reply(*, author, parent_id, content: str) -> Comment:
-        """
-        [COMMENT-02b] Create a reply to an existing comment.
-        Increments parent reply_count atomically.
-        """
         if not content or not content.strip():
             raise ValidationError('Reply content cannot be empty.')
 
@@ -46,19 +46,21 @@ class CommentService:
             parent=parent,
             content=content.strip(),
         )
-
-        # Atomic increment — safe under concurrent requests
         Comment.objects.filter(id=parent.id).update(reply_count=F('reply_count') + 1)
-
         logger.info(f'Reply created: {reply.id} -> parent: {parent.id}')
+
+        transaction.on_commit(
+            lambda: recalculate_score_for_comment.delay(str(reply.id))
+        )
+        # Also rescore parent — its reply_count changed
+        transaction.on_commit(
+            lambda: recalculate_score_for_comment.delay(str(parent.id))
+        )
         return reply
 
     @staticmethod
     @transaction.atomic
     def edit_comment(*, comment_id, requesting_user, content: str) -> Comment:
-        """
-        [COMMENT-02c] Edit comment content. Author-only.
-        """
         if not content or not content.strip():
             raise ValidationError('Comment content cannot be empty.')
 
@@ -72,8 +74,11 @@ class CommentService:
 
         comment.content = content.strip()
         comment.save(update_fields=['content', 'updated_at'])
-
         logger.info(f'Comment edited: {comment.id} by user {requesting_user.id}')
+
+        transaction.on_commit(
+            lambda: recalculate_score_for_comment.delay(str(comment.id))
+        )
         return comment
 
     @staticmethod
