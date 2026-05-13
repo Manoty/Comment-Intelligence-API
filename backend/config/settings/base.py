@@ -3,6 +3,7 @@ from decouple import config
 from decouple import config as env_config
 
 from celery.schedules import crontab
+from datetime import timedelta
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -16,6 +17,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    
+    'django_celery_results'
+    
+    'drf_spectacular',
+    'django_filters',
+    
     # Third party
     'rest_framework',
     'rest_framework_simplejwt',
@@ -76,14 +83,41 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
     ),
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+
+    # [HARD-05a] Global exception handler
+    'EXCEPTION_HANDLER': 'apps.common.exceptions.global_exception_handler',
+
+    # [HARD-05b] Hardened pagination — default for all list views
+    'DEFAULT_PAGINATION_CLASS': 'apps.common.pagination.CommentPagination',
     'PAGE_SIZE': 20,
+
+    # [HARD-05c] Throttling
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon':    '60/hour',
+        'user':    '300/hour',
+        'comment_create': '30/hour',
+        'flag':    '50/hour',
+    },
+
+    # [HARD-05d] Filtering
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.OrderingFilter',
+        'rest_framework.filters.SearchFilter',
+    ],
+
+    # [HARD-05e] Schema
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
     ),
 }
 
-from datetime import timedelta
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
@@ -147,4 +181,11 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
-INSTALLED_APPS += ['django_celery_results']
+# [HARD-05f] OpenAPI schema config
+SPECTACULAR_SETTINGS = {
+    'TITLE':       'Comment Intelligence API',
+    'DESCRIPTION': 'Threaded comment system with relevance ranking and moderation.',
+    'VERSION':     '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+}
