@@ -74,19 +74,6 @@ class CommentDetailView(APIView):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get(self, request, comment_id):
-        comment = CommentSelector.get_comment_by_id(comment_id)
-        if not comment:
-            from rest_framework.response import Response
-            return Response(
-                {'error': {'code': 'not_found', 'message': 'Comment not found.'}},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        return CommentSerializer(comment).data and \
-               __import__('rest_framework.response', fromlist=['Response']).Response(
-                   CommentSerializer(comment).data
-               )
-
-    def get(self, request, comment_id):
         from rest_framework.response import Response
         comment = CommentSelector.get_comment_by_id(comment_id)
         if not comment:
@@ -97,6 +84,7 @@ class CommentDetailView(APIView):
         return Response(CommentSerializer(comment).data)
 
     def patch(self, request, comment_id):
+        from rest_framework.response import Response
         serializer = CommentEditSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -105,7 +93,6 @@ class CommentDetailView(APIView):
             requesting_user=request.user,
             content=serializer.validated_data['content'],
         )
-        from rest_framework.response import Response
         return Response(CommentSerializer(comment).data)
 
     def delete(self, request, comment_id):
