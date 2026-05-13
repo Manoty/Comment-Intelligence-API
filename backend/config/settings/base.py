@@ -1,5 +1,9 @@
 from pathlib import Path
 from decouple import config
+from decouple import config as env_config
+
+from celery.schedules import crontab
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -122,3 +126,24 @@ LOGGING = {
         },
     },
 }
+
+
+# Celery
+CELERY_BROKER_URL = env_config('REDIS_URL', default='redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = env_config('REDIS_URL', default='redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+
+# Periodic task: rescore comments every 10 minutes
+
+
+CELERY_BEAT_SCHEDULE = {
+    'rescore-comments-every-10-min': {
+        'task': 'apps.ranking.tasks.rescore_stale_comments',
+        'schedule': crontab(minute='*/10'),
+    },
+}
+
+INSTALLED_APPS += ['django_celery_results']
